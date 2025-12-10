@@ -9,4 +9,5 @@ domain_data/
 # Jupyter Notebooks (ipynb files)
 *.ipynb
 
-
+# subdomain_config.yaml has PPI
+subdomain_config.yaml
