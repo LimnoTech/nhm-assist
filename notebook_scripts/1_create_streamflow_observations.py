@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.18.1
+#       jupytext_version: 1.16.6
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -45,6 +45,12 @@ with redirect_stdout(f):
 root_dir = pl.Path(os.getcwd().rsplit("nhm-assist", 1)[0] + "nhm-assist")
 sys.path.append(str(root_dir))
 
+from dotenv import load_dotenv
+ 
+load_dotenv(
+    dotenv_path=root_dir / ".env"
+)  # this will load the environment variables from the .env file
+
 from nhm_helpers.sf_data_retrieval import (
     create_nwis_sf_df,
     create_OR_sf_df,
@@ -65,6 +71,8 @@ from nhm_helpers.nhm_assist_utilities import (
     load_subdomain_config,
 )
 config = load_subdomain_config(root_dir)
+
+
 
 
 # %%

@@ -452,7 +452,7 @@ def create_default_gages_file(
     -------
     default_gages_file : pathlib Path class
         Path to file containing gage information from NWIS for the gages in the parameter file.
-        
+
     """
     """ Remove NWIS gages with no daily streamflow data after the st_date in the control file """
     nwis_cache_file = model_dir / "notebook_output_files" / "nc_files" / "nwis_cache.nc"
@@ -464,10 +464,10 @@ def create_default_gages_file(
     """ But we need to add gages without obs back in to the list, if they are in the param file """
     keep_list = list(set(NWIS_obs_list + poi_df.poi_id.to_list()))
     #print(keep_list)
-    
+
     #_nwis_gages_aoi = nwis_gages_aoi.loc[nwis_gages_aoi["poi_id"].isin(keep_list)]
 
-    
+
     """Read in additional non-nwis gages from the resource gage file. These are a list of user requested gages that may or may not be in the parameter file or the nwis gage file, and likely include non NWIS gages.
     """
     resource_gages_file = model_dir / "resource_gages.csv"
@@ -482,7 +482,7 @@ def create_default_gages_file(
                                      'drainage_area': nan_list,
                                      'drainage_area_contrib': nan_list}
                                                   )
-    
+
     if resource_gages_file.exists():
         col_names = [
             "poi_id",
@@ -509,7 +509,7 @@ def create_default_gages_file(
                                                'drainage_area_contrib': [np.nan]}
                                                     )
         #print(resource_gages_file_df)
-    
+
     for idx, row in default_gages_df.iterrows():
         columns = ["latitude", "longitude", "poi_name", "poi_agency"]
         check_list = nwis_gages_aoi["poi_id"].to_list()
@@ -520,7 +520,7 @@ def create_default_gages_file(
                     new_item = nwis_gages_aoi.loc[
                         nwis_gages_aoi.poi_id == new_poi_id, item].values[0]
                     default_gages_df.loc[idx, item] = new_item
-       
+
     for idx, row in default_gages_df.iterrows():
         columns = ["latitude", "longitude", "poi_name", "poi_agency"]
         check_list = resource_gages_file_df["poi_id"].to_list()
@@ -536,26 +536,23 @@ def create_default_gages_file(
                 else:
                     pass #print(f"Gage {new_poi_id} is not in the resource_gages.csv.")
 
-    for idx, row in default_gages_df.iterrows():
-        columns = ["latitude", "longitude", "poi_name", "poi_agency"]
-        for item in columns:
-            if pd.isnull(row[item]):
-                new_poi_id = row["poi_id"]
-                default_gages_df.drop(idx)
-                print(f"Gage {new_poi_id} was dropped from the default_gages.csv due to missing metadata. Add to resource_gages_file.csv and rerun notebook.")
-                try:
-                    resource_gages_file_df.loc[resource_gages_file_df["poi_id"]] == new_poi_id
-                    
-                except KeyError:
-                    resource_gages_file_df.poi_id = new_poi_id
+    #drop from defualt missing data
+    cols = ["latitude", "longitude", "poi_name", "poi_agency"]
+    mask_missing = default_gages_df[cols].isnull().any(axis=1)
 
-        
-        
+    for poi_id in default_gages_df.loc[mask_missing, "poi_id"]:
+        print(
+            f"Gage {poi_id} was dropped from the default_gages.csv "
+            "due to missing metadata. Add to resource_gages_file.csv and rerun notebook."
+        )
 
-        #non_NWIS_gages_from_par_file_df = non_NWIS_gages_from_par_file_df.join(non_NWIS_gages_from_resource_gages_df) 
+    missing_meta_df = default_gages_df.loc[mask_missing]
+    default_gages_df = default_gages_df.loc[~mask_missing]
 
-    #temp2 = pd.concat([_nwis_gages_aoi,non_NWIS_gages_from_par_file_df])
-            
+    resource_gages_file_df = pd.concat([resource_gages_file_df, missing_meta_df])
+
+    #resource_gages_file_df.loc[resource_gages_file_df.index[: len(missing_meta_poi_ids)], "poi_id"] = missing_meta_poi_ids            
+
     default_gages_file = model_dir / "default_gages.csv"
     default_gages_df.to_csv(default_gages_file, index=False)
     resource_gages_file_df.to_csv(resource_gages_file, index=False)

@@ -14,6 +14,7 @@ import pywatershed as pws
 import xarray as xr
 from rich.console import Console
 import dataretrieval.nwis as nwis
+from dataretrieval import waterdata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rich import pretty
@@ -535,16 +536,37 @@ def fetch_single_nwis_gage(ii, nwis_start, nwis_end, poi_df, nwis_gage_nobs_min)
         )
 
         # Drop _cd columns
-        dropped = NWISgage_data.columns[NWISgage_data.columns.str.contains("_cd|_aux")]
+        dropped = NWISgage_data.columns[NWISgage_data.columns.str.contains("_cd|_aux|regression")]
         if not dropped.empty:
-            print("Dropped columns:", list(dropped))
+            print(ii, "Dropped columns:", list(dropped))
             NWISgage_data = NWISgage_data.drop(columns=dropped)
 
-        # Rename column if needed
-        mean_col = [col for col in NWISgage_data.columns if "_Mean" in col][0]
-        if mean_col != "00060_Mean":
-            print(f"For gage {ii}, column '{mean_col}' was renamed '00060_Mean'.")
-            NWISgage_data.rename(columns={mean_col: "00060_Mean"}, inplace=True)
+        mean_cols = [col for col in NWISgage_data.columns if "_Mean" in col]
+
+        if len(mean_cols) >= 2:
+            # restrict to columns that actually exist
+            mean_cols_in_df = [c for c in mean_cols if c in NWISgage_data.columns]
+
+            if len(mean_cols_in_df) >= 2:
+                print(f"Gage {ii} has multiple 00060_Mean discharge columns: {mean_cols_in_df}")
+                winner = NWISgage_data[mean_cols_in_df].notna().sum().idxmax()
+
+                if winner is not None:
+                    cols_to_drop = [c for c in mean_cols_in_df if c != winner]
+                    NWISgage_data.drop(columns=cols_to_drop, inplace=True)
+                    NWISgage_data.rename(columns={winner: "00060_Mean"}, inplace=True)
+
+                    print(
+                        f"Gage {ii} has columns {list(NWISgage_data.columns)}; "
+                        f"column {winner} was selected."
+                    )
+        else:
+            if NWISgage_data.columns[1] != "00060_Mean":
+                col_name = NWISgage_data.columns[1]
+                NWISgage_data.rename(columns={col_name: "00060_Mean"}, inplace=True)
+                print(f"For gage {ii}, column '{col_name}' was renamed '00060_Mean'.")
+            else:
+                pass
 
         if NWISgage_data.empty:
             return ii, "NO_DATA_IN_PERIOD"
@@ -553,6 +575,7 @@ def fetch_single_nwis_gage(ii, nwis_start, nwis_end, poi_df, nwis_gage_nobs_min)
             return ii, NWISgage_data
         else:
             return ii, "TOO_FEW_OBS"
+
     except Exception as e:
         return ii, f"ERROR: {e}"
 

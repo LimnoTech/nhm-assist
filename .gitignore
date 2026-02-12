@@ -11,3 +11,5 @@ domain_data/
 
 # subdomain_config.yaml has PPI
 subdomain_config.yaml
+
+.env

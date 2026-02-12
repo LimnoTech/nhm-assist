@@ -1,6 +1,7 @@
 import pathlib as pl
 import warnings
 import dataretrieval.nwis as nwis
+from dataretrieval import waterdata
 import geopandas as gpd
 import numpy as np
 import os
@@ -123,19 +124,22 @@ def fetch_nwis_gage_info(
 ):
     """
     This function creates a pandas DataFrame of information for all gages in the model domain that
-    are in NWIS, from 01-01-1949 to the end date listed in the control file.
+    are in USGS WaterData database that have mean daily discharge data from the start date to the end date listed in the control file,
+    and that are within 1 kilometer of the provided stream network.
 
     Parameters
     ----------
     model_dir : pathlib Path class
-        Path object to the subdomain directory. 
-    control_file_name : pathlib Path class 
-        Path object to the control file. 
-    nwis_gage_nobs_min : int 
-        Minimum number of days for NWIS gage to be considered as potential poi. 
+        Path object to the subdomain directory.
+    control_file_name : pathlib Path class
+        Path object to the control file.
+    nwis_gage_nobs_min : int
+        Minimum number of days for NWIS gage to be considered as potential poi.
     hru_gdf : geopandas GeoDataFrame()
-        HRU geopandas.GeoDataFrame() from GIS data in subdomain. 
-            
+        HRU geopandas.GeoDataFrame() from GIS data in subdomain.
+    seg_gdf : geopandas GeoDataFrame()
+        segments geopandas.GeoDataFrame() from GIS data in subdomain.
+
     Returns
     -------
     nwis_gage_info_aoi : pandas DataFrame()
@@ -159,18 +163,18 @@ def fetch_nwis_gage_info(
     """
     crs = 4326
 
-    # Make a list if the HUC2 region(s) the subdomain intersects for NWIS queries
-    #huc2_gdf = gpd.read_file("./data_dependencies/HUC2/HUC2.shp").to_crs(crs)
-    #model_domain_regions = list((huc2_gdf.clip(hru_gdf).loc[:]["huc2"]).values)
-
     # Make a list of the state abbreviations the subdomain intersects for NWIS queries
-    states_gdf = gpd.read_file(root_dir / "data_dependencies/US_states/tl_2017_us_state.shp").to_crs(crs)
-    states = list((states_gdf.clip(hru_gdf).loc[:]["STUSPS"]).values)
+    states_gdf = gpd.read_file(
+        root_dir / "data_dependencies/US_states/tl_2017_us_state.shp"
+    ).to_crs(crs)
+    states_name = list(gpd.clip(states_gdf, hru_gdf).loc[:]["NAME"].values)
+
     """
-    Start date changed because gages were found in the par file that predate 1979 and tossing nan's into poi_df later.
+    Use caution if start and end dates may be modified here. 
+    If gages are present in the param file, recommend adding metadata in the gage_resource.csv
     """
 
-    st_date = "1942-01-01"#(pd.to_datetime(str(control.start_time)).strftime("%Y-%m-%d"))
+    st_date = pd.to_datetime(str(control.start_time)).strftime("%Y-%m-%d")
     en_date = pd.to_datetime(str(control.end_time)).strftime("%Y-%m-%d")
 
     if nwis_gages_file.exists():
@@ -210,107 +214,94 @@ def fetch_nwis_gage_info(
             ],
         )
     else:
-        siteINFO_huc = gpd.GeoDataFrame()
-        for i in states:
-            kk = nwis.get_info(
-                stateCd=i,
-                siteType="ST",
-                agencyCd="USGS",
-            )[0]
-            siteINFO_huc = pd.concat([siteINFO_huc, kk])
-         
-        
-        
-        # siteINFO_huc = nwis.get_info(huc=model_domain_regions, siteType="ST")
-        # siteINFO_huc = gpd.GeoDataFrame()
+        domain_discharge, _ = waterdata.get_time_series_metadata(
+            state_name=states_name,
+            parameter_code="00060",
+            statistic_id="00003",
+            begin=f"../{en_date}",
+            end=f"{st_date}/..",
+        )
 
-        # bounds = hru_gdf.total_bounds.tolist()
-        # bounds = [round(bound, 6) for bound in bounds]
-        
-        # zz = nwis.get_info(
-        #     bBox=bounds,
-        #     siteType="ST",
-        #     agencyCd="USGS",
-        # )[0]
-        # siteINFO_huc = pd.concat([siteINFO_huc, zz])
-        nwis_gage_info_gdf = siteINFO_huc.set_index("site_no").to_crs(crs)
-        nwis_gage_info_aoi = nwis_gage_info_gdf.clip(hru_gdf)
+        """Drop gages that are more than 1000m from a NHM segment
+        """
 
-        # Make a list of gages in the model domain that have discharge measurements > numer of specifed days
-        # siteINFO_huc = gpd.GeoDataFrame()
-        # kk = nwis.get_info(
-        #     bBox=bounds,
-        #     startDt=st_date,
-        #     endDt=en_date,
-        #     seriesCatalogOutput=True,
-        #     parameterCd="00060",
-        # )[0]
-        # siteINFO_huc = pd.concat([siteINFO_huc, kk])
-        siteINFO_huc = gpd.GeoDataFrame()
-        for i in states:
-            kk = nwis.get_info(
-                stateCd=i,
-                startDt=st_date,
-                endDt=en_date,
-                seriesCatalogOutput=True,
-                parameterCd="00060",
-            )[0]
-            siteINFO_huc = pd.concat([siteINFO_huc, kk])
-            
-        nwis_gage_info_gdf = siteINFO_huc.set_index("site_no").to_crs(crs)
-        nwis_gage_nobs_aoi = nwis_gage_info_gdf.clip(hru_gdf)
-        
-        nwis_gage_nobs_aoi = nwis_gage_nobs_aoi.loc[
-            nwis_gage_nobs_aoi.count_nu > nwis_gage_nobs_min
-        ]
-        nwis_gage_nobs_aoi_list = list(set(nwis_gage_nobs_aoi.index.to_list()))
+        # DataFrames
+        points_gdf = domain_discharge.set_crs("EPSG:4326").to_crs(crs=3857)
+        lines_gdf = seg_gdf.to_crs(crs=3857)  # change proj to get practical linear unit
 
-        nwis_gage_info_aoi = nwis_gage_info_aoi.loc[
-            nwis_gage_info_aoi.index.isin(nwis_gage_nobs_aoi_list)
-        ]
-        #########
-        '''Drop gages that are more than 1000m from a NHM segment
-        '''
-             
-        # Sample DataFrames
-        points_gdf = nwis_gage_info_aoi.to_crs(crs=3857)
-        lines_gdf = seg_gdf.to_crs(crs=3857)
-        
-        
         # Step 1: Calculate minimum distance from each point to the nearest line
         def nearest_line_distance(point):
             return lines_gdf.geometry.distance(point).min()
-        
-        
+
         # Apply the distance calculation to points
-        points_gdf["distance_to_line"] = points_gdf.geometry.apply(nearest_line_distance)
-        
+        points_gdf["distance_to_line"] = points_gdf.geometry.apply(
+            nearest_line_distance
+        )
+
         # Step 2: Filter points that are within 1000 meters of the nearest line
         filtered_points_gdf = points_gdf[points_gdf["distance_to_line"] <= 1000]
-        
+
         # Drop the distance column if no longer needed
         filtered_points_gdf = filtered_points_gdf.drop(columns="distance_to_line")
-        
-        # Print the original and filtered GeoDataFrames
-        # print("Original Points GeoDataFrame:")
-        # print(len(points_gdf))
-        # print("\nFiltered Points GeoDataFrame (NWIS gags within 100 meters of a NHM segment):")
-        # print(len(filtered_points_gdf))
-        nwis_gage_info_aoi = filtered_points_gdf.copy().to_crs(crs)
 
+        domain_discharge = filtered_points_gdf.copy().to_crs(crs)
 
-        #########
-        nwis_gage_info_aoi.reset_index(inplace=True)
+        """Now, get the site infomation for the new list
+            used the chunk format from the example: 
+            https://github.com/DOI-USGS/dataretrieval-python/blob/dc9b614f646b2656c17acc77c0161762053afaf6/demos/WaterData_demo.ipynb
+        """
+        chunk_size = 100
+        site_list = domain_discharge["monitoring_location_id"].unique().tolist()
+        chunks = [
+            site_list[i : i + chunk_size] for i in range(0, len(site_list), chunk_size)
+        ]
+        domain_locations = pd.DataFrame()
+        for site_group in chunks:
+            try:
+                chunk_data, _ = waterdata.get_monitoring_locations(
+                    monitoring_location_id=site_group,
+                    site_type_code="ST",
+                    properties=[
+                        "monitoring_location_id",
+                        "geometry",
+                        "agency_code",
+                        "agency_name",
+                        "monitoring_location_number",
+                        "monitoring_location_name",
+                        "state_name",
+                        "drainage_area",
+                        "contributing_drainage_area",
+                    ],
+                )
+                if not chunk_data.empty:
+                    domain_locations = pd.concat([domain_locations, chunk_data])
+            except Exception as e:
+                print(f"Chunk failed: {e}")
+
+        domain_locations["latitude"] = (
+            domain_locations.geometry.y
+        )  # need this for the notebooks
+        domain_locations["longitude"] = (
+            domain_locations.geometry.x
+        )  # need this for the notebooks
+
+        nwis_gage_info_aoi = (
+            domain_locations.set_index("monitoring_location_number", drop=False)
+            .set_crs("EPSG:4326")
+            .to_crs(crs)
+        )
+
         field_map = {
-            "agency_cd": "poi_agency",
-            "site_no": "poi_id",
-            "station_nm": "poi_name",
-            "dec_lat_va": "latitude",
-            "dec_long_va": "longitude",
-            "drain_area_va": "drainage_area",
-            "contrib_drain_area_va": "drainage_area_contrib",
+            "agency_code": "poi_agency",
+            "monitoring_location_number": "poi_id",
+            "monitoring_location_name": "poi_name",
+            "latitude": "latitude",
+            "longitude": "longitude",
+            "drainage_area": "drainage_area",
+            "contributing_drainage_area": "drainage_area_contrib",
         }
         include_cols = list(field_map.keys())
+
         nwis_gage_info_aoi = nwis_gage_info_aoi.loc[:, include_cols]
         nwis_gage_info_aoi.rename(columns=field_map, inplace=True)
         nwis_gage_info_aoi.set_index("poi_id", inplace=True)
