@@ -214,12 +214,14 @@ def fetch_nwis_gage_info(
             ],
         )
     else:
+        aoi_bb = hru_gdf.total_bounds
         domain_discharge, _ = waterdata.get_time_series_metadata(
-            state_name=states_name,
+            # state_name=states_name,
+            bbox = aoi_bb.tolist()
             parameter_code="00060",
             statistic_id="00003",
-            begin=f"../{en_date}",
-            end=f"{st_date}/..",
+            # begin=f"../{en_date}",
+            # end=f"{st_date}/..",
         )
 
         """Drop gages that are more than 1000m from a NHM segment
