@@ -626,13 +626,36 @@ def create_waterdata_sf_df(
     max_workers: int = 4,
 ):
     """
-    Replaces depercated NWIS uses modern Water Data APIs via
-    dataretrieval.waterdata.get_daily(), in batched requests.
+    Create a dataframe for Water Data API gages in the model domain
 
-    Notes:
-    - waterdata.get_daily accepts multiple monitoring_location_id values per call.
-    - The Water Data APIs page large responses; each page counts as a request;
-      default/max page limit is 50,000.
+    Parameters
+    ----------
+    root_dir: pathlib Path class
+        Path object to the nhm-assist root directory.
+    control_file_name: pathlib Path class
+        Path object to the control file.        
+    model_dir: pathlib Path class
+        Path object to the subdomain directory.        
+    output_netcdf_filename: pathlib Path class
+        Output netCDF filename for cachefile, e.g., model_dir / "notebook_output_files/nc_files/sf_efc.nc"        
+    hru_gdf: geopandas GeoDataFrame
+        HRU geopandas.GeoDataFrame() from GIS data in subdomain.        
+    poi_df: pandas DataFrame
+        Dataframe containing gages.        
+    waterdata_gage_nobs_min: int
+        Minimum number of days for Water Data API gage to be considered as potential poi.
+    seg_gdf: geopandas GeoDataFrame
+        Segments geopandas.GeoDataFrame() from GIS data in subdomain.
+    batch_size: int
+        Number of monitoring locations to request per batch.
+    max_workers: int
+        Maximum number of worker threads used for batched requests.
+        
+    Returns
+    -------
+    waterdata_df: pandas DataFrame
+        Dataframe of Water Data API gages.
+        
     """
     _ensure_usgs_pat_stripped()
 
