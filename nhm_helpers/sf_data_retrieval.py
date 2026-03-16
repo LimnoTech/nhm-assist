@@ -637,7 +637,7 @@ def create_waterdata_sf_df(
     _ensure_usgs_pat_stripped()
 
     waterdata_cache_file = (
-        model_dir / "notebook_output_files" / "nc_files" / "waterdata_cache.nc"
+        model_dir / "notebook_output_files" / "nc_files" / "nwis_cache.nc"
     )
     control = pws.Control.load_prms(
         pl.Path(model_dir / control_file_name, warn_unused_options=False)
@@ -648,7 +648,7 @@ def create_waterdata_sf_df(
         root_dir=root_dir,
         model_dir=model_dir,
         control_file_name=control_file_name,
-        waterdata_gage_nobs_min=waterdata_gage_nobs_min,
+        nwis_gage_nobs_min=waterdata_gage_nobs_min,
         hru_gdf=hru_gdf,
         seg_gdf=seg_gdf,
     )
