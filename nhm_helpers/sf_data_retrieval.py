@@ -644,7 +644,7 @@ def create_waterdata_sf_df(
     )
     waterdata_gages_file = model_dir / "WaterDataGages.csv"
 
-    waterdata_gage_info_aoi = fetch_waterdata_gage_info(
+    waterdata_gage_info_aoi = fetch_nwis_gage_info(
         root_dir=root_dir,
         model_dir=model_dir,
         control_file_name=control_file_name,
