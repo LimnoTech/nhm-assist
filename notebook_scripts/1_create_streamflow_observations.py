@@ -132,17 +132,17 @@ poi_df = create_poi_df(
 # # Retrieve all NWIS gage information and streamflow observations.
 # This function pulls time series data for all NWIS gages in the domain, and then filters data to the simulation period (`nwis_gages_cache.nc`), and creates `NWISgages.csv`. Both the time series data file and the NWISgages.csv contain all site information for gages with a period of record greater than the user specified threshold (`nwis_gage_nobs_min`, set in [notebook 0](./0_Workspace_setup.ipynb)) within the simulation period **AND** ALL gages in the parameter file regardless of a period of record less than the specified threshold.
 
-# %% [raw]
-# waterdata_df = create_waterdata_sf_df(
-#     root_dir=root_dir,
-#     control_file_name=config["control_file_name"],
-#     model_dir=config["model_dir"],
-#     output_netcdf_filename=config["output_netcdf_filename"],
-#     hru_gdf=hru_gdf,
-#     poi_df=poi_df,
-#     waterdata_gage_nobs_min=config["nwis_gage_nobs_min"],
-#     seg_gdf=seg_gdf,
-# )
+# %%
+waterdata_df = create_waterdata_sf_df(
+    root_dir=root_dir,
+    control_file_name=config["control_file_name"],
+    model_dir=config["model_dir"],
+    output_netcdf_filename=config["output_netcdf_filename"],
+    hru_gdf=hru_gdf,
+    poi_df=poi_df,
+    waterdata_gage_nobs_min=config["nwis_gage_nobs_min"],
+    seg_gdf=seg_gdf,
+)
 
 # %% [markdown]
 # ## Make the default gages file (default_gages.csv)
@@ -211,7 +211,7 @@ xr_streamflow = create_sf_efc_df(
     output_netcdf_filename=config["output_netcdf_filename"],
     owrd_df=owrd_df,
     ecy_df=ecy_df,
-    NWIS_df=NWIS_df,
+    NWIS_df=waterdata_df,
     gages_df=gages_df,
 )
 

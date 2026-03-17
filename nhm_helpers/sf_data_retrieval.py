@@ -141,8 +141,8 @@ def create_OR_sf_df(*,root_dir, control_file_name, model_dir, output_netcdf_file
     
     """
     control = pws.Control.load_prms(
-    model_dir / control_file_name, warn_unused_options=False
-)
+        model_dir / control_file_name, warn_unused_options=False
+    )
 
     start_date = pd.to_datetime(str(control.start_time)).strftime("%m/%d/%Y")
     end_date = pd.to_datetime(str(control.end_time)).strftime("%m/%d/%Y")
@@ -375,8 +375,8 @@ def create_ecy_sf_df(*, root_dir, control_file_name, model_dir, output_netcdf_fi
         
     """
     control = pws.Control.load_prms(
-    model_dir / control_file_name, warn_unused_options=False
-)
+        model_dir / control_file_name, warn_unused_options=False
+    )
     ecy_regions = ["17"]
 
     """
@@ -663,7 +663,7 @@ def create_waterdata_sf_df(
         model_dir / "notebook_output_files" / "nc_files" / "nwis_cache.nc"
     )
     control = pws.Control.load_prms(
-        pl.Path(model_dir / control_file_name, warn_unused_options=False)
+        pl.Path(model_dir / control_file_name), warn_unused_options=False
     )
     waterdata_gages_file = model_dir / "WaterDataGages.csv"
 
